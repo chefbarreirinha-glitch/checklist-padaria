@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#BA7517"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Checklist Padaria"/>
+<title>Checklist Operacional — Padaria</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --amber:#BA7517;--amber-l:#FAEEDA;--amber-m:#FAC775;--amber-d:#633806;
+  --green:#3B6D11;--green-l:#EAF3DE;
+  --red:#A32D2D;--red-l:#FCEBEB;
+  --teal:#0F6E56;--teal-l:#E1F5EE;
+  --purple:#534AB7;--purple-l:#EEEDFE;
+  --bg:#FFFFFF;--bg2:#F8F7F3;--bg3:#F1EFE8;
+  --text:#1A1A1A;--text2:#666660;--text3:#99998F;
+  --border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.22);
+  --radius:8px;--radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#1C1C1A;--bg2:#252523;--bg3:#2E2E2B;--text:#F0EFE8;--text2:#A8A89E;--text3:#6E6E65;--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);}
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg3);color:var(--text);min-height:100vh;}
+.app{max-width:600px;margin:0 auto;padding:1rem;min-height:100vh;}
+.loading-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--amber);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:14px;color:var(--text2);}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;}
+.login-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:2rem;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,0,0,0.07);}
+.login-logo{text-align:center;margin-bottom:1.5rem;}
+.login-logo h1{font-family:'Playfair Display',serif;font-size:24px;color:var(--text);}
+.login-logo p{font-size:13px;color:var(--text2);margin-top:4px;}
+.field{margin-bottom:1rem;}
+.field label{font-size:12px;color:var(--text2);display:block;margin-bottom:5px;font-weight:500;}
+.field select,.field input{width:100%;padding:10px 12px;border:0.5px solid var(--border2);border-radius:var(--radius);font-size:15px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);-webkit-appearance:none;}
+.field select:focus,.field input:focus{outline:none;border-color:var(--amber);}
+.btn-main{width:100%;padding:12px;border-radius:var(--radius);border:0.5px solid var(--amber);background:var(--amber-l);color:var(--amber-d);font-size:15px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;margin-top:.5rem;transition:all .15s;}
+.btn-main:hover{background:var(--amber-m);}
+.btn-sec{width:100%;padding:10px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text2);font-size:14px;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:8px;transition:all .15s;}
+.btn-sec:hover{background:var(--bg2);}
+.login-error{font-size:12px;color:var(--red);margin-top:8px;text-align:center;min-height:18px;}
+.divider{display:flex;align-items:center;gap:10px;margin:1.25rem 0 1rem;}
+.divider span{font-size:11px;color:var(--text3);white-space:nowrap;}
+.divider::before,.divider::after{content:'';flex:1;height:0.5px;background:var(--border);}
+.header{display:flex;align-items:center;justify-content:space-between;padding:1rem 0;border-bottom:0.5px solid var(--border);margin-bottom:1.25rem;}
+.header-left h2{font-family:'Playfair Display',serif;font-size:20px;color:var(--text);}
+.header-left p{font-size:12px;color:var(--text2);margin-top:2px;}
+.header-right{display:flex;align-items:center;gap:8px;}
+.user-pill{font-size:12px;background:var(--amber-l);color:var(--amber-d);padding:4px 10px;border-radius:20px;font-weight:500;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;}
+.sync-dot.offline{background:var(--red);}
+.sync-dot.syncing{background:var(--amber);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.btn-out{padding:7px 13px;border:0.5px solid var(--border2);border-radius:var(--radius);background:var(--bg);color:var(--text2);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;}
+.tabs{display:flex;gap:6px;margin-bottom:1.25rem;overflow-x:auto;padding-bottom:2px;}
+.tab-btn{flex-shrink:0;padding:7px 15px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--bg);font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text2);cursor:pointer;transition:all .15s;}
+.tab-btn.active{background:var(--amber-l);border-color:var(--amber);color:var(--amber-d);font-weight:500;}
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem;}
+.sum-card{background:var(--bg2);border-radius:var(--radius);padding:.875rem 1rem;}
+.sum-card .sl{font-size:11px;color:var(--text2);margin-bottom:4px;}
+.sum-card .sv{font-size:22px;font-weight:500;color:var(--text);}
+.report-bar{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.report-bar h3{font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px;}
+.report-bar p{font-size:12px;color:var(--text2);}
+.btn-report{padding:9px 18px;border-radius:var(--radius);border:0.5px solid var(--amber);background:var(--amber-l);color:var(--amber-d);font-size:13px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s;}
+.btn-report:hover{background:var(--amber-m);}
+.btn-report:disabled{opacity:.5;cursor:not-allowed;}
+.refresh-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+.refresh-info{font-size:12px;color:var(--text2);}
+.btn-refresh{padding:6px 12px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text2);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;}
+.store-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);margin-bottom:8px;overflow:hidden;}
+.store-header{display:flex;align-items:center;gap:12px;padding:12px 1rem;cursor:pointer;user-select:none;}
+.store-header:hover{background:var(--bg2);}
+.store-avatar{width:36px;height:36px;border-radius:50%;background:var(--amber-l);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--amber-d);flex-shrink:0;}
+.store-info{flex:1;min-width:0;}
+.store-name{font-size:14px;font-weight:500;color:var(--text);}
+.store-sub{font-size:12px;color:var(--text2);}
+.store-badges{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+.mbadge{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;white-space:nowrap;}
+.mb-done{background:var(--green-l);color:var(--green);}
+.mb-part{background:var(--amber-l);color:var(--amber-d);}
+.mb-none{background:var(--bg2);color:var(--text2);}
+.store-detail{display:none;border-top:0.5px solid var(--border);padding:12px 1rem;}
+.store-detail.open{display:block;}
+.drow{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.dtype{font-size:13px;color:var(--text2);}
+.mini-prog{display:flex;align-items:center;gap:8px;}
+.mini-track{width:80px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.mini-fill{height:100%;border-radius:2px;transition:width .4s;}
+.mf-done{background:var(--green);}
+.mf-part{background:var(--amber);}
+.mini-pct{font-size:12px;color:var(--text2);min-width:30px;text-align:right;}
+.dobs{font-size:12px;color:var(--text2);font-style:italic;border-left:2px solid var(--border);padding-left:8px;margin:4px 0 6px;}
+.colabs-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:8px 0 6px;}
+.colab-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border);}
+.colab-row:last-child{border-bottom:none;}
+.colab-av{width:26px;height:26px;border-radius:50%;background:var(--purple-l);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:var(--purple);flex-shrink:0;}
+.colab-name{font-size:13px;color:var(--text);flex:1;}
+.cbadge{font-size:11px;padding:2px 7px;border-radius:8px;font-weight:500;}
+.cb-a{background:var(--amber-l);color:var(--amber-d);}
+.cb-f{background:var(--purple-l);color:var(--purple);}
+.prog-wrap{background:var(--bg2);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1.25rem;border:0.5px solid var(--border);}
+.prog-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.prog-label{font-size:13px;color:var(--text2);}
+.prog-count{font-size:15px;font-weight:500;color:var(--text);}
+.prog-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.prog-fill{height:100%;background:var(--amber);border-radius:3px;transition:width .4s;}
+.prog-fill.done{background:var(--green);}
+.section{margin-bottom:1.5rem;}
+.sec-title{font-size:11px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
+.item{display:flex;align-items:flex-start;gap:12px;padding:12px 1rem;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;transition:all .15s;}
+.item:hover{background:var(--bg2);}
+.item.checked{background:var(--green-l);border-color:#C0DD97;}
+.item.checked .item-text{color:var(--text2);text-decoration:line-through;}
+.checkbox{width:22px;height:22px;border-radius:5px;border:1.5px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;background:var(--bg);margin-top:1px;}
+.item.checked .checkbox{background:var(--green);border-color:var(--green);}
+.chk-icon{width:11px;height:11px;display:none;}
+.item.checked .chk-icon{display:block;}
+.chk-icon::before{content:'';display:block;width:11px;height:11px;background:white;clip-path:polygon(14% 44%,0 65%,50% 100%,100% 16%,80% 0%,43% 62%);}
+.item-body{flex:1;min-width:0;}
+.item-text{font-size:14px;color:var(--text);line-height:1.4;}
+.item-who{font-size:11px;color:var(--teal);margin-top:2px;}
+.ibadge{font-size:11px;padding:2px 8px;border-radius:10px;flex-shrink:0;font-weight:500;align-self:flex-start;margin-top:2px;}
+.ib-obrig{background:var(--amber-l);color:var(--amber-d);}
+.ib-seg{background:var(--teal-l);color:var(--teal);}
+.obs-area{width:100%;border:0.5px solid var(--border2);border-radius:var(--radius);padding:10px 12px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);background:var(--bg);resize:vertical;min-height:80px;margin-top:4px;}
+.obs-area:focus{outline:none;border-color:var(--amber);}
+.action-row{display:flex;gap:8px;margin-top:1.5rem;padding-bottom:2rem;}
+.btn-save{flex:1;padding:12px;border-radius:var(--radius);border:0.5px solid var(--amber);background:var(--amber-l);color:var(--amber-d);font-size:15px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;transition:all .15s;}
+.btn-save:hover{background:var(--amber-m);}
+.btn-clear{padding:12px 16px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text2);font-size:15px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;}
+.btn-clear:hover{background:var(--bg2);}
+.hist-card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:8px;}
+.hist-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.hist-title{font-size:14px;font-weight:500;color:var(--text);}
+.hist-date{font-size:12px;color:var(--text2);}
+.hist-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.htag{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;}
+.ht-complete{background:var(--green-l);color:var(--green);}
+.ht-incomplete{background:var(--red-l);color:var(--red);}
+.ht-ab{background:var(--amber-l);color:var(--amber-d);}
+.ht-fe{background:var(--purple-l);color:var(--purple);}
+.empty{text-align:center;padding:3rem 1rem;color:var(--text2);font-size:14px;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:white;padding:11px 20px;border-radius:var(--radius);font-size:14px;font-family:'DM Sans',sans-serif;font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;z-index:100;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,0.2);}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="loading-screen">
+    <div class="spinner"></div>
+    <div class="loading-text">Conectando ao banco de dados...</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBbIbLlphnLjzfsRMG_d7FsoxKnVmUp_Ak",
+  authDomain: "opera-9341f.firebaseapp.com",
+  databaseURL: "https://opera-9341f-default-rtdb.firebaseio.com",
+  projectId: "opera-9341f",
+  storageBucket: "opera-9341f.firebasestorage.app",
+  messagingSenderId: "17775732362",
+  appId: "1:17775732362:web:292e077024610767cf6f73"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const STORES=[
+  {id:1,name:'Vila Paraíso',abbr:'VP'},
+  {id:2,name:'PDCJE',abbr:'JE'},
+  {id:3,name:'PDCTQ',abbr:'TQ'},
+  {id:4,name:'PDCTT',abbr:'TT'},
+  {id:5,name:'PDCSLM',abbr:'SL'},
+];
+const MASTER_PASSWORD='1234';
+const CHECKLISTS={
+  abertura:[
+    {section:'Limpeza e higiene',items:[
+      {id:'a1',text:'Limpar e higienizar bancadas e superfícies de trabalho',required:true},
+      {id:'a2',text:'Verificar limpeza geral do salão e área de atendimento',required:true},
+      {id:'a3',text:'Verificar estoque de produtos de limpeza e higiene',required:false},
+    ]},
+    {section:'Equipamentos',items:[
+      {id:'a4',text:'Ligar e verificar funcionamento dos fornos',required:true},
+      {id:'a5',text:'Verificar temperatura das câmaras frias e geladeiras',required:true},
+      {id:'a6',text:'Testar equipamentos de cozinha (batedeiras, amassadeiras)',required:true},
+      {id:'a7',text:'Verificar sistema de caixa e impressora fiscal',required:true},
+    ]},
+    {section:'Produtos e estoque',items:[
+      {id:'a8',text:'Conferir produtos no estoque e solicitar reposição se necessário',required:true},
+      {id:'a9',text:'Verificar validade dos insumos perecíveis',required:true},
+      {id:'a10',text:'Organizar vitrine e exposição de produtos',required:true},
+      {id:'a11',text:'Preparar troco e conferir fundo de caixa',required:true},
+    ]},
+    {section:'Equipe e segurança',items:[
+      {id:'a12',text:'Conferir escala e presença dos colaboradores',required:true},
+      {id:'a13',text:'Verificar se todos estão com EPI e uniforme correto',required:true},
+      {id:'a14',text:'Checar se alarme foi desativado e iluminação ligada',required:true},
+      {id:'a15',text:'Verificar extintores e saídas de emergência',required:false},
+    ]},
+  ],
+  fechamento:[
+    {section:'Caixa e financeiro',items:[
+      {id:'f1',text:'Fechar e conferir caixa do dia',required:true},
+      {id:'f2',text:'Imprimir relatório de vendas e guardar',required:true},
+      {id:'f3',text:'Guardar dinheiro no cofre ou preparar depósito',required:true},
+    ]},
+    {section:'Produtos',items:[
+      {id:'f4',text:'Embalar e etiquetar produtos que serão aproveitados amanhã',required:true},
+      {id:'f5',text:'Descartar produtos vencidos ou fora do padrão',required:true},
+      {id:'f6',text:'Guardar ingredientes perecíveis nas câmaras frias',required:true},
+      {id:'f7',text:'Registrar produção e sobras do dia',required:false},
+    ]},
+    {section:'Limpeza',items:[
+      {id:'f8',text:'Lavar e higienizar utensílios, formas e equipamentos',required:true},
+      {id:'f9',text:'Limpar fornos e superfícies com resíduos de farinha',required:true},
+      {id:'f10',text:'Varrer e lavar o piso da área de produção',required:true},
+      {id:'f11',text:'Limpar banheiros e repor insumos',required:false},
+    ]},
+    {section:'Segurança e fechamento',items:[
+      {id:'f12',text:'Desligar todos os equipamentos e fornos',required:true},
+      {id:'f13',text:'Verificar torneiras, gás e pontos de água',required:true},
+      {id:'f14',text:'Apagar luzes e ligar sistema de alarme',required:true},
+      {id:'f15',text:'Trancar e conferir todas as entradas',required:true},
+    ]},
+  ],
+};
+
+let session=null,currentTab='abertura',expandedStores={},lastRefresh=null;
+let sharedState={},sharedHistory=[],syncStatus='syncing';
+
+function todayStr(){return new Date().toLocaleDateString('pt-BR');}
+function todayKey(){return todayStr().replace(/\//g,'_');}
+function stateKey(sid,type){return `s${sid}_${type}_${todayKey()}`;}
+function initials(name){return name.trim().split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);}
+
+function getProgress(sid,type){
+  const k=stateKey(sid,type);
+  if(!sharedState[k]) return {done:0,total:0,pct:0};
+  const items=CHECKLISTS[type].flatMap(s=>s.items);
+  const done=items.filter(i=>sharedState[k].checks&&sharedState[k].checks[i.id]).length;
+  const total=items.length;
+  return {done,total,pct:total?Math.round((done/total)*100):0};
+}
+
+function ensureKey(sid,type){
+  const k=stateKey(sid,type);
+  if(!sharedState[k]){
+    sharedState[k]={checks:{},checkedBy:{},obs:'',obsBy:''};
+    CHECKLISTS[type].forEach(sec=>sec.items.forEach(i=>{sharedState[k].checks[i.id]=false;}));
+  }
+}
+
+function showToast(msg,ok=true){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.background=ok?'var(--green)':'var(--red)';
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function setSyncStatus(s){
+  syncStatus=s;
+  const dot=document.getElementById('sync-dot');
+  if(dot) dot.className='sync-dot'+(s==='offline'?' offline':s==='syncing'?' syncing':'');
+}
+
+// Listeners em tempo real
+function setupListeners(){
+  db.ref('.info/connected').on('value',snap=>{
+    setSyncStatus(snap.val()?'online':'offline');
+  });
+
+  db.ref('state/'+todayKey()).on('value',snap=>{
+    const data=snap.val()||{};
+    STORES.forEach(s=>['abertura','fechamento'].forEach(t=>{
+      const k=stateKey(s.id,t);
+      if(data[k]) sharedState[k]=data[k];
+      else ensureKey(s.id,t);
+    }));
+    lastRefresh=new Date();
+    if(session) render();
+  });
+
+  db.ref('history').orderByChild('ts').limitToLast(100).on('value',snap=>{
+    const data=snap.val()||{};
+    sharedHistory=Object.values(data).sort((a,b)=>b.ts-a.ts);
+    if(session&&currentTab==='historico') render();
+  });
+}
+
+async function saveState(k){
+  setSyncStatus('syncing');
+  try{
+    await db.ref('state/'+todayKey()+'/'+k).set(sharedState[k]);
+    setSyncStatus('online');
+  }catch(e){setSyncStatus('offline');showToast('Erro ao sincronizar.',false);}
+}
+
+async function pushHistory(entry){
+  setSyncStatus('syncing');
+  try{
+    await db.ref('history').push(entry);
+    setSyncStatus('online');
+  }catch(e){setSyncStatus('offline');}
+}
+
+function render(){
+  if(!session) renderLogin();
+  else if(session.type==='master') renderMaster();
+  else renderStore();
+}
+
+// LOGIN
+function renderLogin(){
+  document.getElementById('app').innerHTML=`
+  <div class="login-wrap"><div class="login-card">
+    <div class="login-logo">
+      <h1>Checklist Operacional</h1>
+      <p>Identifique-se para continuar</p>
+    </div>
+    <div class="field"><label>Seu nome completo</label>
+      <input type="text" id="l-name" placeholder="Ex: Maria Silva" autocomplete="name"/>
+    </div>
+    <div class="field"><label>Loja</label>
+      <select id="l-store">
+        <option value="">Selecione a loja...</option>
+        ${STORES.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Turno</label>
+      <select id="l-type">
+        <option value="abertura">Abertura</option>
+        <option value="fechamento">Fechamento</option>
+      </select>
+    </div>
+    <button class="btn-main" onclick="doLogin()">Entrar no checklist</button>
+    <div class="login-error" id="l-error"></div>
+    <div class="divider"><span>acesso gerencial</span></div>
+    <div class="field"><label>Senha do gestor geral</label>
+      <input type="password" id="l-master" placeholder="Senha master" onkeydown="if(event.key==='Enter')doMasterLogin()"/>
+    </div>
+    <button class="btn-sec" onclick="doMasterLogin()">Entrar como gestor geral</button>
+  </div></div>`;
+}
+
+function doLogin(){
+  const name=document.getElementById('l-name').value.trim();
+  const storeId=parseInt(document.getElementById('l-store').value);
+  const type=document.getElementById('l-type').value;
+  const err=document.getElementById('l-error');
+  if(!name){err.textContent='Digite seu nome.';return;}
+  if(!storeId){err.textContent='Selecione a loja.';return;}
+  session={name,storeId,type:'store',turno:type};
+  currentTab=type;
+  render();
+}
+
+function doMasterLogin(){
+  const pw=document.getElementById('l-master').value;
+  const err=document.getElementById('l-error');
+  if(pw!==MASTER_PASSWORD){err.textContent='Senha incorreta.';return;}
+  session={name:'Gestor Geral',type:'master'};
+  currentTab='overview';
+  render();
+}
+
+function doLogout(){session=null;render();}
+
+// MASTER
+function renderMaster(){
+  const today=todayStr();
+  const now=lastRefresh?lastRefresh.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'--';
+  let totalDone=0,totalItems=0,storesComplete=0;
+  STORES.forEach(s=>{
+    ['abertura','fechamento'].forEach(t=>{const p=getProgress(s.id,t);totalDone+=p.done;totalItems+=p.total;});
+    if(getProgress(s.id,'abertura').pct===100&&getProgress(s.id,'fechamento').pct===100) storesComplete++;
+  });
+  const globalPct=totalItems?Math.round((totalDone/totalItems)*100):0;
+
+  const storesHTML=STORES.map(s=>{
+    const pa=getProgress(s.id,'abertura'),pf=getProgress(s.id,'fechamento');
+    const allDone=pa.pct===100&&pf.pct===100,anyDone=pa.done>0||pf.done>0;
+    const bCls=allDone?'mb-done':anyDone?'mb-part':'mb-none';
+    const bLabel=allDone?'Completo':anyDone?'Em andamento':'Pendente';
+    const isOpen=expandedStores[s.id];
+    const obsA=sharedState[stateKey(s.id,'abertura')]?.obs||'';
+    const obsF=sharedState[stateKey(s.id,'fechamento')]?.obs||'';
+    const colabs={};
+    ['abertura','fechamento'].forEach(t=>{
+      const d=sharedState[stateKey(s.id,t)];
+      if(!d) return;
+      Object.entries(d.checkedBy||{}).forEach(([,who])=>{
+        if(!colabs[who]) colabs[who]={name:who,abertura:0,fechamento:0};
+        colabs[who][t]++;
+      });
+    });
+    const ca=Object.values(colabs);
+    return `<div class="store-card">
+      <div class="store-header" onclick="toggleExpand(${s.id})">
+        <div class="store-avatar">${s.abbr}</div>
+        <div class="store-info"><div class="store-name">${s.name}</div>
+          <div class="store-sub">Abert. ${pa.done}/${pa.total} · Fech. ${pf.done}/${pf.total}</div></div>
+        <div class="store-badges"><span class="mbadge ${bCls}">${bLabel}</span>
+          <span style="font-size:13px;color:var(--text2)">${isOpen?'▲':'▼'}</span></div>
+      </div>
+      <div class="store-detail ${isOpen?'open':''}">
+        <div class="drow"><span class="dtype">Abertura</span>
+          <div class="mini-prog"><div class="mini-track"><div class="mini-fill ${pa.pct===100?'mf-done':pa.pct>0?'mf-part':''}" style="width:${pa.pct}%"></div></div>
+          <span class="mini-pct">${pa.pct}%</span></div></div>
+        <div class="drow" style="margin-bottom:4px"><span class="dtype">Fechamento</span>
+          <div class="mini-prog"><div class="mini-track"><div class="mini-fill ${pf.pct===100?'mf-done':pf.pct>0?'mf-part':''}" style="width:${pf.pct}%"></div></div>
+          <span class="mini-pct">${pf.pct}%</span></div></div>
+        ${obsA?`<div class="dobs">Abertura: "${obsA}"</div>`:''}
+        ${obsF?`<div class="dobs">Fechamento: "${obsF}"</div>`:''}
+        ${ca.length?`<div class="colabs-title">Colaboradores ativos hoje</div>
+          ${ca.map(c=>`<div class="colab-row">
+            <div class="colab-av">${initials(c.name)}</div>
+            <span class="colab-name">${c.name}</span>
+            ${c.abertura?`<span class="cbadge cb-a">abert. ${c.abertura}✓</span>`:''}
+            ${c.fechamento?`<span class="cbadge cb-f">fech. ${c.fechamento}✓</span>`:''}
+          </div>`).join('')}`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  const histHTML=sharedHistory.length
+    ?sharedHistory.slice(0,30).map(e=>`<div class="hist-card">
+      <div class="hist-header"><span class="hist-title">${e.store}</span><span class="hist-date">${e.date} às ${e.time}</span></div>
+      <div class="hist-meta">
+        <span class="htag ${e.turno==='abertura'?'ht-ab':'ht-fe'}">${e.turno}</span>
+        <span class="htag ${e.done===e.total?'ht-complete':'ht-incomplete'}">${e.done}/${e.total}</span>
+        <span style="font-size:12px;color:var(--text2)">${e.colaborador}</span>
+        ${e.obs?`<span style="font-size:11px;color:var(--text2);font-style:italic">obs.</span>`:''}
+      </div></div>`).join('')
+    :'<div class="empty">Nenhum registro salvo ainda.</div>';
+
+  document.getElementById('app').innerHTML=`
+  <div class="header">
+    <div class="header-left"><h2>Painel Geral</h2><p>${today}</p></div>
+    <div class="header-right">
+      <div id="sync-dot" class="sync-dot ${syncStatus==='offline'?'offline':syncStatus==='syncing'?'syncing':''}"></div>
+      <span class="user-pill">Gestor Geral</span>
+      <button class="btn-out" onclick="doLogout()">Sair</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn ${currentTab!=='historico'?'active':''}" onclick="setMasterTab('overview')">Visão geral</button>
+    <button class="tab-btn ${currentTab==='historico'?'active':''}" onclick="setMasterTab('historico')">Histórico</button>
+  </div>
+  <div id="mv-ov" style="${currentTab==='historico'?'display:none':''}">
+    <div class="summary-grid">
+      <div class="sum-card"><div class="sl">Lojas completas</div><div class="sv">${storesComplete}/5</div></div>
+      <div class="sum-card"><div class="sl">Itens concluídos</div><div class="sv">${totalDone}/${totalItems}</div></div>
+      <div class="sum-card"><div class="sl">Progresso geral</div><div class="sv">${globalPct}%</div></div>
+    </div>
+    <div class="report-bar">
+      <div><h3>Relatório diário — ${today}</h3><p>Status de todas as lojas em PDF</p></div>
+      <button class="btn-report" id="btn-report" onclick="gerarPDF()">Gerar PDF</button>
+    </div>
+    <div class="refresh-row">
+      <span class="refresh-info">Sincronização automática · ${now}</span>
+      <button class="btn-refresh" onclick="showToast('Dados já em tempo real!');">Atualizado</button>
+    </div>
+    ${storesHTML}
+  </div>
+  <div id="mv-hist" style="${currentTab==='historico'?'':'display:none'}">${histHTML}</div>`;
+}
+
+function setMasterTab(t){
+  currentTab=t;
+  document.getElementById('mv-ov').style.display=t==='historico'?'none':'';
+  document.getElementById('mv-hist').style.display=t==='historico'?'':'none';
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',[true,false][i]===(t!=='historico')));
+}
+
+function toggleExpand(id){expandedStores[id]=!expandedStores[id];renderMaster();}
+
+// STORE
+function renderStore(){
+  const s=STORES.find(x=>x.id===session.storeId);
+  const today=todayStr();
+  const k=stateKey(s.id,currentTab);
+  const p=getProgress(s.id,currentTab);
+  const myItems=CHECKLISTS[currentTab].flatMap(sec=>sec.items).filter(i=>sharedState[k]?.checkedBy?.[i.id]===session.name).length;
+
+  const checkHTML=CHECKLISTS[currentTab].map(sec=>`
+    <div class="section"><div class="sec-title">${sec.section}</div>
+    ${sec.items.map(item=>{
+      const checked=sharedState[k]?.checks?.[item.id];
+      const who=sharedState[k]?.checkedBy?.[item.id]||'';
+      return `<div class="item ${checked?'checked':''}" onclick="toggleItem('${item.id}')">
+        <div class="checkbox"><div class="chk-icon"></div></div>
+        <div class="item-body">
+          <div class="item-text">${item.text}</div>
+          ${checked&&who?`<div class="item-who">marcado por ${who}</div>`:''}
+        </div>
+        <span class="ibadge ${item.required?'ib-obrig':'ib-seg'}">${item.required?'obrigatório':'segurança'}</span>
+      </div>`;
+    }).join('')}</div>`).join('');
+
+  const histLoja=sharedHistory.filter(e=>e.storeId===s.id);
+  const histHTML=histLoja.length
+    ?histLoja.slice(0,20).map(e=>`<div class="hist-card">
+      <div class="hist-header"><span class="hist-title">${e.turno==='abertura'?'Abertura':'Fechamento'}</span><span class="hist-date">${e.date} às ${e.time}</span></div>
+      <div class="hist-meta">
+        <span class="htag ${e.turno==='abertura'?'ht-ab':'ht-fe'}">${e.turno}</span>
+        <span class="htag ${e.done===e.total?'ht-complete':'ht-incomplete'}">${e.done}/${e.total}</span>
+        <span style="font-size:12px;color:var(--text2)">${e.colaborador}</span>
+      </div></div>`).join('')
+    :'<div class="empty">Nenhum registro salvo ainda.</div>';
+
+  document.getElementById('app').innerHTML=`
+  <div class="header">
+    <div class="header-left"><h2>${s.name}</h2><p>${today}</p></div>
+    <div class="header-right">
+      <div id="sync-dot" class="sync-dot ${syncStatus==='offline'?'offline':syncStatus==='syncing'?'syncing':''}"></div>
+      <span class="user-pill">${session.name}</span>
+      <button class="btn-out" onclick="doLogout()">Sair</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn ${currentTab==='abertura'?'active':''}" onclick="setStoreTab('abertura')">Abertura</button>
+    <button class="tab-btn ${currentTab==='fechamento'?'active':''}" onclick="setStoreTab('fechamento')">Fechamento</button>
+    <button class="tab-btn ${currentTab==='historico'?'active':''}" onclick="setStoreTab('historico')">Histórico</button>
+  </div>
+  <div id="sv-cl" style="${currentTab==='historico'?'display:none':''}">
+    <div class="prog-wrap">
+      <div class="prog-info">
+        <span class="prog-label">Progresso · <span style="color:var(--teal)">${myItems} item(ns) seus</span></span>
+        <span class="prog-count">${p.done} / ${p.total}</span>
+      </div>
+      <div class="prog-track"><div class="prog-fill ${p.pct===100?'done':''}" style="width:${p.pct}%"></div></div>
+    </div>
+    ${checkHTML}
+    <div class="section"><div class="sec-title">Observações do turno</div>
+      <textarea class="obs-area" placeholder="Registre ocorrências ou pendências..." oninput="updateObs(this.value)">${sharedState[k]?.obs||''}</textarea>
+    </div>
+    <div class="action-row">
+      <button class="btn-save" onclick="salvar()">Salvar registro</button>
+      <button class="btn-clear" onclick="limpar()">Limpar meus itens</button>
+    </div>
+  </div>
+  <div id="sv-hist" style="${currentTab==='historico'?'':'display:none'}">${histHTML}</div>`;
+}
+
+function setStoreTab(t){currentTab=t;renderStore();}
+
+async function toggleItem(itemId){
+  const k=stateKey(session.storeId,currentTab);
+  if(!sharedState[k]) return;
+  const cur=sharedState[k].checks?.[itemId]||false;
+  sharedState[k].checks[itemId]=!cur;
+  if(!cur) sharedState[k].checkedBy[itemId]=session.name;
+  else delete sharedState[k].checkedBy[itemId];
+  renderStore();
+  await saveState(k);
+}
+
+function updateObs(val){
+  const k=stateKey(session.storeId,currentTab);
+  if(!sharedState[k]) return;
+  sharedState[k].obs=val;
+  sharedState[k].obsBy=session.name;
+  clearTimeout(window._obsTimer);
+  window._obsTimer=setTimeout(()=>saveState(k),800);
+}
+
+async function salvar(){
+  const s=STORES.find(x=>x.id===session.storeId);
+  const k=stateKey(s.id,currentTab);
+  const items=CHECKLISTS[currentTab].flatMap(sec=>sec.items);
+  const done=items.filter(i=>sharedState[k]?.checks?.[i.id]).length;
+  await pushHistory({
+    ts:Date.now(),
+    store:s.name,storeId:s.id,
+    turno:currentTab,date:todayStr(),
+    time:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    done,total:items.length,
+    colaborador:session.name,
+    obs:sharedState[k]?.obs||''
+  });
+  showToast('Registro salvo e sincronizado!');
+}
+
+async function limpar(){
+  const k=stateKey(session.storeId,currentTab);
+  if(!sharedState[k]) return;
+  CHECKLISTS[currentTab].flatMap(s=>s.items)
+    .filter(i=>sharedState[k]?.checkedBy?.[i.id]===session.name)
+    .forEach(i=>{sharedState[k].checks[i.id]=false;delete sharedState[k].checkedBy[i.id];});
+  await saveState(k);
+  renderStore();
+}
+
+// PDF
+function gerarPDF(){
+  const btn=document.getElementById('btn-report');
+  if(btn){btn.disabled=true;btn.textContent='Gerando...';}
+  try{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const W=210,M=18;let y=M;
+    const amber=[186,117,23],green=[59,109,17],red=[163,45,45],gray=[100,100,100],lt=[240,240,235],dk=[30,30,30];
+    doc.setFillColor(...amber);doc.rect(0,0,W,28,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(18);doc.setFont('helvetica','bold');
+    doc.text('Relatorio Diario Operacional',M,12);
+    doc.setFontSize(10);doc.setFont('helvetica','normal');
+    doc.text(`Data: ${todayStr()}     Gerado: ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`,M,21);
+    y=36;
+    let tD=0,tI=0,sC=0;
+    STORES.forEach(s=>{
+      ['abertura','fechamento'].forEach(t=>{const p=getProgress(s.id,t);tD+=p.done;tI+=p.total;});
+      if(getProgress(s.id,'abertura').pct===100&&getProgress(s.id,'fechamento').pct===100) sC++;
+    });
+    const gP=tI?Math.round((tD/tI)*100):0;
+    doc.setFillColor(...lt);doc.roundedRect(M,y,W-M*2,18,3,3,'F');
+    doc.setTextColor(...dk);doc.setFontSize(10);doc.setFont('helvetica','bold');
+    doc.text(`Lojas completas: ${sC}/5`,M+6,y+7);doc.text(`Itens: ${tD}/${tI}`,M+65,y+7);doc.text(`Progresso: ${gP}%`,M+120,y+7);
+    y+=26;
+    STORES.forEach(s=>{
+      if(y>255){doc.addPage();y=M;}
+      const pa=getProgress(s.id,'abertura'),pf=getProgress(s.id,'fechamento');
+      const allDone=pa.pct===100&&pf.pct===100,anyDone=pa.done>0||pf.done>0;
+      doc.setFillColor(...(allDone?green:anyDone?amber:gray));
+      doc.roundedRect(M,y,W-M*2,10,2,2,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');
+      doc.text(s.name,M+4,y+7);
+      const sl=allDone?'COMPLETO':anyDone?'EM ANDAMENTO':'PENDENTE';
+      doc.setFontSize(9);doc.text(sl,W-M-doc.getTextWidth(sl)-4,y+7);
+      y+=13;
+      ['abertura','fechamento'].forEach(type=>{
+        const p=type==='abertura'?pa:pf;
+        doc.setTextColor(...dk);doc.setFontSize(9);doc.setFont('helvetica','normal');
+        doc.text((type==='abertura'?'Abertura':'Fechamento')+':',M+4,y+4);
+        const bx=M+30,bw=80,bh=3;
+        doc.setFillColor(220,220,215);doc.roundedRect(bx,y+1,bw,bh,1,1,'F');
+        if(p.pct>0){doc.setFillColor(...(p.pct===100?green:amber));doc.roundedRect(bx,y+1,bw*(p.pct/100),bh,1,1,'F');}
+        doc.setTextColor(...dk);doc.text(`${p.done}/${p.total} (${p.pct}%)`,M+115,y+4);
+        const d=sharedState[stateKey(s.id,type)];
+        const co={};
+        if(d) Object.entries(d.checkedBy||{}).forEach(([,who])=>{co[who]=(co[who]||0)+1;});
+        const ns=Object.entries(co).map(([n,c])=>`${n} (${c})`).join(', ');
+        if(ns){doc.setTextColor(...gray);doc.setFontSize(8);doc.text('Colaboradores: '+ns,M+4,y+10,{maxWidth:W-M*2-8});y+=6;}
+        y+=8;
+      });
+      const obsA=sharedState[stateKey(s.id,'abertura')]?.obs||'';
+      const obsF=sharedState[stateKey(s.id,'fechamento')]?.obs||'';
+      if(obsA){doc.setTextColor(...amber);doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('Obs. abertura:',M+4,y+4);doc.setFont('helvetica','normal');doc.setTextColor(...dk);const ln=doc.splitTextToSize(obsA,W-M*2-40);doc.text(ln,M+36,y+4);y+=ln.length*4+4;}
+      if(obsF){doc.setTextColor(83,74,183);doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('Obs. fechamento:',M+4,y+4);doc.setFont('helvetica','normal');doc.setTextColor(...dk);const ln=doc.splitTextToSize(obsF,W-M*2-44);doc.text(ln,M+42,y+4);y+=ln.length*4+4;}
+      const pend=[];
+      ['abertura','fechamento'].forEach(type=>{
+        const k=stateKey(s.id,type);
+        CHECKLISTS[type].forEach(sec=>sec.items.forEach(item=>{if(item.required&&!sharedState[k]?.checks?.[item.id]) pend.push({type,text:item.text});}));
+      });
+      if(pend.length){
+        if(y>258){doc.addPage();y=M;}
+        doc.setFillColor(252,235,235);doc.roundedRect(M,y,W-M*2,6+pend.length*5,2,2,'F');
+        doc.setTextColor(...red);doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('Itens obrigatorios pendentes:',M+4,y+5);y+=8;
+        doc.setFont('helvetica','normal');
+        pend.forEach(p=>{doc.text(`- [${p.type}] ${p.text}`,M+4,y,{maxWidth:W-M*2-8});y+=5;});y+=2;
+      }
+      y+=4;doc.setDrawColor(220,220,215);doc.line(M,y,W-M,y);y+=6;
+    });
+    const te=sharedHistory.filter(e=>e.date===todayStr());
+    if(te.length){
+      if(y>240){doc.addPage();y=M;}
+      doc.setFillColor(...amber);doc.rect(M,y,W-M*2,8,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('Registros salvos hoje',M+4,y+6);y+=12;
+      te.forEach(e=>{
+        if(y>270){doc.addPage();y=M;}
+        doc.setTextColor(...dk);doc.setFontSize(8);doc.setFont('helvetica','normal');
+        doc.text(`${e.time}  ${e.store}  [${e.turno}]  ${e.done}/${e.total}  —  ${e.colaborador}${e.obs?' | '+e.obs:''}`,M+2,y,{maxWidth:W-M*2-4});y+=5;
+      });
+    }
+    const pc=doc.internal.getNumberOfPages();
+    for(let i=1;i<=pc;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(...gray);doc.text(`Pagina ${i} de ${pc}  —  Checklist Operacional Padaria`,M,292);}
+    doc.save(`relatorio_${todayStr().replace(/\//g,'-')}.pdf`);
+    showToast('PDF gerado com sucesso!');
+  }catch(err){showToast('Erro ao gerar PDF.',false);console.error(err);}
+  if(btn){btn.disabled=false;btn.textContent='Gerar PDF';}
+}
+
+// BOOT
+setupListeners();
+</script>
+</body>
+</html>
